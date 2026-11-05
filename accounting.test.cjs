@@ -25,3 +25,26 @@ test('gold received from customer reduces gold payable', () => {
 test('gold delivered to customer increases gold payable', () => {
   assert.deepEqual(deltas('gold_out', 0.4, 0), { cashDelta: 0, goldDelta: 0.4 });
 });
+
+const normalizeStart = html.indexOf('function normalizeDigits');
+const customerStart = html.indexOf('function voiceCustomer');
+assert.ok(normalizeStart >= 0 && customerStart > normalizeStart, 'voice number parser must exist');
+const numberFns = new Function(html.slice(normalizeStart, customerStart) + '; return {normalizeDigits, spokenNumber};')();
+
+test('Persian spoken millions are parsed correctly', () => {
+  assert.equal(numberFns.spokenNumber('بیست میلیون تومان'), 20000000);
+  assert.equal(numberFns.spokenNumber('یک میلیون و دویست هزار'), 1200000);
+  assert.equal(numberFns.spokenNumber('20 میلیون'), 20000000);
+});
+test('Persian fractional weights are parsed correctly', () => {
+  assert.equal(numberFns.spokenNumber('دو و نیم'), 2.5);
+  assert.equal(numberFns.spokenNumber('۱٫۵'), 1.5);
+});
+test('Android APK includes native Persian speech bridge and microphone permission', () => {
+  const java = fs.readFileSync('app/src/main/java/ir/zarnigar/app/MainActivity.java', 'utf8');
+  const manifest = fs.readFileSync('app/src/main/AndroidManifest.xml', 'utf8');
+  assert.match(java, /SpeechRecognizer/);
+  assert.match(java, /fa-IR/);
+  assert.match(java, /addJavascriptInterface/);
+  assert.match(manifest, /android.permission.RECORD_AUDIO/);
+});
