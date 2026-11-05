@@ -1,4 +1,4 @@
-const CACHE='zarnigar-v10';
+const CACHE='zarnigar-v11';
 const ASSETS=['./','./index.html','./manifest.json','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil((async()=>{
   const cache=await caches.open(CACHE);
