@@ -12,7 +12,7 @@
 </style></head>
 <body><main class="app">
 <header class="top"><div class="brand"><div class="logo">✦</div><div><h1>زرنگار</h1><small>حسابداری ساده طلافروشی · نسخه ۴</small></div></div><div class="actions top-actions"><button class="secondary" id="backupBtn">خروجی پشتیبان</button><button class="secondary" id="restoreBtn">بازیابی پشتیبان</button><button class="gold" id="installBtn" hidden>نصب برنامه</button></div></header>
-<div class="notice">اطلاعات فعلاً روی همین مرورگر و دستگاه ذخیره می‌شود. پیش از تعویض گوشی یا پاک‌کردن اطلاعات مرورگر، حتماً فایل پشتیبان بگیرید. مانده منفی پولی یعنی مشتری به فروشگاه بدهکار است؛ واریز وجه فقط مانده پولی را مثبت‌تر می‌کند. مانده مثبت طلا یعنی فروشگاه به مشتری طلا بدهکار است؛ دریافت طلا فقط مانده طلایی را تغییر می‌دهد.</div>
+<div class="notice">اطلاعات روی همین دستگاه و مرورگر ذخیره می‌شود. پیش از تعویض گوشی یا پاک‌کردن اطلاعات مرورگر، حتماً پشتیبان بگیرید. مانده منفی پولی یعنی مشتری به فروشگاه بدهکار است؛ مانده مثبت طلا یعنی فروشگاه به مشتری طلا بدهکار است. برای امنیت، پشتیبان‌گیری منظم ضروری است.</div><p id="storageStatus" class="muted" style="margin:0 2px 12px">در حال آماده‌سازی فضای ذخیره‌سازی…</p>
 <section class="grid">
 <div class="card stat"><small>مشتریان</small><strong id="customerCount">۰</strong><span>تعداد مشتریان ثبت‌شده</span></div>
 <div class="card stat"><small>بدهی پولی مشتریان</small><strong id="cashReceivable">۰</strong><span>تومان · قدرمطلق مانده‌های منفی</span></div>
@@ -44,17 +44,36 @@ const today=()=>new Date().toLocaleDateString('en-CA');
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2);
 const TYPES={sale:'فروش طلا به مشتری',purchase:'خرید طلا از مشتری',receive:'دریافت وجه از مشتری',pay:'پرداخت وجه به مشتری',gold_in:'دریافت طلا از مشتری',gold_out:'تحویل طلا به مشتری'};
 const emptyDB=()=>({version:6,customers:[],transactions:[]});
-let db;try{db=JSON.parse(localStorage.getItem('zarnigar_db')||'null')||emptyDB()}catch(e){db=emptyDB()}
-if(!Array.isArray(db.customers)||!Array.isArray(db.transactions))db=emptyDB();
+// IndexedDB provides substantially more room than localStorage. Keep a legacy
+// localStorage snapshot only for one-time migration and emergency compatibility.
+const DB_NAME='zarnigar_storage',DB_STORE='records',DB_KEY='main';
+let db=emptyDB(),storageReady=false;
+const idbOpen=new Promise((resolve,reject)=>{
+  if(!('indexedDB'in window)){reject(new Error('مرورگر از IndexedDB پشتیبانی نمی‌کند'));return}
+  const req=indexedDB.open(DB_NAME,1);
+  req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(DB_STORE))req.result.createObjectStore(DB_STORE)};
+  req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error||new Error('خطا در بازکردن حافظه'));
+});
+async function readStoredDB(){
+  try{const idb=await idbOpen;const data=await new Promise((resolve,reject)=>{const tx=idb.transaction(DB_STORE,'readonly');const req=tx.objectStore(DB_STORE).get(DB_KEY);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error)});if(data)return data}catch(e){console.warn('IndexedDB unavailable; trying legacy storage',e)}
+  try{return JSON.parse(localStorage.getItem('zarnigar_db')||'null')}catch(e){return null}
+}
+async function writeStoredDB(data){
+  const idb=await idbOpen;
+  await new Promise((resolve,reject)=>{const tx=idb.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(data,DB_KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error||new Error('ذخیره‌سازی ناموفق'));tx.onabort=()=>reject(tx.error||new Error('ذخیره‌سازی لغو شد'))});
+  // Best-effort small legacy snapshot. IndexedDB remains the primary store.
+  try{localStorage.setItem('zarnigar_db',JSON.stringify(data))}catch(e){}
+}
+
 // Migrate legacy balances to the confirmed customer-account sign convention.
 if((Number(db.version)||0)<3){for(const t of db.transactions){t.goldDelta=-(Number(t.goldDelta)||0)}db.version=3;}
 if((Number(db.version)||0)<4){for(const t of db.transactions){if(t.type==='sale')t.goldDelta=Math.abs(Number(t.grams)||0)}db.version=4;}
 if((Number(db.version)||0)<5){for(const t of db.transactions){if(t.type==='sale'){t.cashDelta=-Math.abs(Number(t.cashDelta)||((Number(t.amount)||0)+(Number(t.extras)||0)));t.goldDelta=Math.abs(Number(t.grams)||0)}}db.version=5;}
 // Version 6: customer payments increase their cash balance; payouts decrease it.
-if((Number(db.version)||0)<6){for(const t of db.transactions){if(t.type==='receive'||t.type==='pay')t.cashDelta=-(Number(t.cashDelta)||0)}db.version=6;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
+if((Number(db.version)||0)<6){for(const t of db.transactions){if(t.type==='receive'||t.type==='pay')t.cashDelta=-(Number(t.cashDelta)||0)}db.version=6;}
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function persist(){db.version=6;try{localStorage.setItem('zarnigar_db',JSON.stringify(db));render()}catch(e){alert('فضای ذخیره‌سازی کافی نیست. فوراً از اطلاعات پشتیبان بگیرید.');}}
+async function persist(){db.version=6;try{await writeStoredDB(db);render();$('storageStatus').textContent='ذخیره‌سازی امن روی همین دستگاه · IndexedDB';}catch(e){alert('ذخیره اطلاعات انجام نشد. فضای خالی دستگاه یا مجوز مرورگر را بررسی کنید و از اطلاعات فعلی خروجی پشتیبان بگیرید.');console.error(e)}}
 function balances(id){let cash=0,gold=0;for(const t of db.transactions){if(t.customerId===id){cash+=Number(t.cashDelta)||0;gold+=Number(t.goldDelta)||0}}return{cash,gold}}
 function amountOf(t){return (Number(t.amount)||0)+(Number(t.extras)||0)}
 function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=-total;gold=grams}else if(type==='purchase'){cash=total;gold=-grams}else if(type==='receive')cash=total;else if(type==='pay')cash=-total;else if(type==='gold_in')gold=-grams;else if(type==='gold_out')gold=grams;return{cashDelta:cash,goldDelta:gold}}
@@ -105,5 +124,5 @@ let type=/دریافت|واریز/.test(raw)?'receive':/پرداخت/.test(raw)?
 const gramMatch=raw.match(/(.+?)\s*گرم/),amountMatch=raw.match(/(?:مبلغ|به ارزش|به قیمت)\s*(.+?)(?:\s*تومان|$)/);const grams=gramMatch?spokenNumber(gramMatch[1].split(/\s+/).slice(-3).join(' ')):0;const amount=amountMatch?spokenNumber(amountMatch[1]):0;
 $('voiceResult').innerHTML='<div class="notice">مشتری: <b>'+esc(customer.name)+'</b><br>نوع: '+TYPES[type]+'<br>وزن تشخیص‌داده‌شده: '+fmt(grams)+' گرم<br>مبلغ تشخیص‌داده‌شده: '+fmt(amount)+' تومان<br>اعداد را کنترل کنید؛ سپس به فرم منتقل کنید.</div><button id="voiceApply">انتقال به فرم ثبت</button>';$('voiceApply').onclick=()=>{$('txCustomer').value=customer.id;$('txType').value=type;$('txGrams').value=grams||'';$('txAmount').value=amount||'';showTab('transaction')}}
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-resetTx();render();
+(async()=>{try{const stored=await readStoredDB();if(stored&&Array.isArray(stored.customers)&&Array.isArray(stored.transactions))db=stored;else db=emptyDB();if(!Array.isArray(db.customers)||!Array.isArray(db.transactions))db=emptyDB();if((Number(db.version)||0)<3){for(const t of db.transactions)t.goldDelta=-(Number(t.goldDelta)||0);db.version=3;}if((Number(db.version)||0)<4){for(const t of db.transactions){if(t.type==='sale')t.goldDelta=Math.abs(Number(t.grams)||0)}db.version=4;}if((Number(db.version)||0)<5){for(const t of db.transactions){if(t.type==='sale'){t.cashDelta=-Math.abs(Number(t.cashDelta)||((Number(t.amount)||0)+(Number(t.extras)||0)));t.goldDelta=Math.abs(Number(t.grams)||0)}}db.version=5;}if((Number(db.version)||0)<6){for(const t of db.transactions){if(t.type==='receive'||t.type==='pay')t.cashDelta=-(Number(t.cashDelta)||0)}db.version=6;}await writeStoredDB(db);storageReady=true;$('storageStatus').textContent='ذخیره‌سازی فعال · IndexedDB · داده‌ها روی همین دستگاه';}catch(err){storageReady=false;$('storageStatus').textContent='هشدار: حافظه پیشرفته فعال نشد؛ از پشتیبان‌گیری استفاده کنید.';console.error(err)}resetTx();render()})();
 </script></body></html>
