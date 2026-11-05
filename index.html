@@ -12,7 +12,7 @@
 </style></head>
 <body><main class="app">
 <header class="top"><div class="brand"><div class="logo">✦</div><div><h1>زرنگار</h1><small>حسابداری هوشمند طلافروشی · نسخه ۲</small></div></div><div class="actions top-actions"><button class="secondary" id="backupBtn">خروجی پشتیبان</button><button class="secondary" id="restoreBtn">بازیابی پشتیبان</button><button class="gold" id="installBtn" hidden>نصب برنامه</button></div></header>
-<div class="notice">اطلاعات فعلاً روی همین مرورگر و دستگاه ذخیره می‌شود. پیش از تعویض گوشی یا پاک‌کردن اطلاعات مرورگر، حتماً فایل پشتیبان بگیرید. مانده منفی پولی یعنی مشتری به فروشگاه بدهکار است؛ مانده مثبت طلا یعنی فروشگاه به مشتری طلا بدهکار است.</div>
+<div class="notice">اطلاعات فعلاً روی همین مرورگر و دستگاه ذخیره می‌شود. پیش از تعویض گوشی یا پاک‌کردن اطلاعات مرورگر، حتماً فایل پشتیبان بگیرید. مانده منفی پولی یعنی مشتری به فروشگاه بدهکار است؛ واریز وجه فقط مانده پولی را مثبت‌تر می‌کند. مانده مثبت طلا یعنی فروشگاه به مشتری طلا بدهکار است؛ دریافت طلا فقط مانده طلایی را تغییر می‌دهد.</div>
 <section class="grid">
 <div class="card stat"><small>مشتریان</small><strong id="customerCount">۰</strong><span>تعداد مشتریان ثبت‌شده</span></div>
 <div class="card stat"><small>بدهی پولی مشتریان</small><strong id="cashReceivable">۰</strong><span>تومان · قدرمطلق مانده‌های منفی</span></div>
@@ -24,7 +24,7 @@
 <section id="transaction" class="card panel hidden"><div class="section-head"><h2 id="txHeading">ثبت رویداد حساب</h2><span id="editBadge" class="pill hidden">ویرایش رویداد</span></div><form id="txForm">
 <input id="txId" type="hidden">
 <div class="field"><label>مشتری</label><select id="txCustomer" required></select></div>
-<div class="field"><label>نوع رویداد</label><select id="txType"><option value="sale">فروش طلا به مشتری</option><option value="purchase">خرید طلا از مشتری</option><option value="receive">دریافت وجه از مشتری</option><option value="pay">پرداخت وجه به مشتری</option><option value="gold_in">دریافت طلا از مشتری</option><option value="gold_out">تحویل طلا به مشتری</option></select></div>
+<div class="field"><label>نوع رویداد</label><select id="txType"><option value="sale">فروش طلا به مشتری</option><option value="purchase">خرید طلا از مشتری</option><option value="receive">واریز وجه مشتری (فقط حساب پولی)</option><option value="pay">پرداخت وجه به مشتری (فقط حساب پولی)</option><option value="gold_in">ثبت دریافت طلای مشتری (فقط حساب طلا)</option><option value="gold_out">ثبت تحویل طلا به مشتری (فقط حساب طلا)</option></select></div>
 <div class="row"><div class="field"><label>وزن (گرم)</label><input id="txGrams" type="number" min="0" step="0.001" inputmode="decimal" placeholder="مثلاً ۲٫۵"></div><div class="field"><label>مبلغ پایه (تومان)</label><input id="txAmount" type="number" min="0" step="1" inputmode="numeric" placeholder="مبلغ"></div></div>
 <div class="row"><div class="field"><label>اجرت، سود و متعلقات (تومان)</label><input id="txExtras" type="number" min="0" step="1" value="0" inputmode="numeric"></div><div class="field"><label>تاریخ</label><input id="txDate" type="date" required></div></div>
 <div class="field"><label>توضیحات</label><textarea id="txNote" rows="2" placeholder="توضیحات اختیاری"></textarea></div>
@@ -43,19 +43,21 @@ const fmt=n=>Number(n||0).toLocaleString('fa-IR',{maximumFractionDigits:3});
 const today=()=>new Date().toLocaleDateString('en-CA');
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2);
 const TYPES={sale:'فروش طلا به مشتری',purchase:'خرید طلا از مشتری',receive:'دریافت وجه از مشتری',pay:'پرداخت وجه به مشتری',gold_in:'دریافت طلا از مشتری',gold_out:'تحویل طلا به مشتری'};
-const emptyDB=()=>({version:5,customers:[],transactions:[]});
+const emptyDB=()=>({version:6,customers:[],transactions:[]});
 let db;try{db=JSON.parse(localStorage.getItem('zarnigar_db')||'null')||emptyDB()}catch(e){db=emptyDB()}
 if(!Array.isArray(db.customers)||!Array.isArray(db.transactions))db=emptyDB();
 // Migrate legacy balances to the confirmed customer-account sign convention.
 if((Number(db.version)||0)<3){for(const t of db.transactions){t.goldDelta=-(Number(t.goldDelta)||0)}db.version=3;}
 if((Number(db.version)||0)<4){for(const t of db.transactions){if(t.type==='sale')t.goldDelta=Math.abs(Number(t.grams)||0)}db.version=4;}
-if((Number(db.version)||0)<5){for(const t of db.transactions){if(t.type==='sale'){t.cashDelta=-Math.abs(Number(t.cashDelta)||((Number(t.amount)||0)+(Number(t.extras)||0)));t.goldDelta=Math.abs(Number(t.grams)||0)}}db.version=5;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
+if((Number(db.version)||0)<5){for(const t of db.transactions){if(t.type==='sale'){t.cashDelta=-Math.abs(Number(t.cashDelta)||((Number(t.amount)||0)+(Number(t.extras)||0)));t.goldDelta=Math.abs(Number(t.grams)||0)}}db.version=5;}
+// Version 6: customer payments increase their cash balance; payouts decrease it.
+if((Number(db.version)||0)<6){for(const t of db.transactions){if(t.type==='receive'||t.type==='pay')t.cashDelta=-(Number(t.cashDelta)||0)}db.version=6;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function persist(){db.version=5;try{localStorage.setItem('zarnigar_db',JSON.stringify(db));render()}catch(e){alert('فضای ذخیره‌سازی کافی نیست. فوراً از اطلاعات پشتیبان بگیرید.');}}
+function persist(){db.version=6;try{localStorage.setItem('zarnigar_db',JSON.stringify(db));render()}catch(e){alert('فضای ذخیره‌سازی کافی نیست. فوراً از اطلاعات پشتیبان بگیرید.');}}
 function balances(id){let cash=0,gold=0;for(const t of db.transactions){if(t.customerId===id){cash+=Number(t.cashDelta)||0;gold+=Number(t.goldDelta)||0}}return{cash,gold}}
 function amountOf(t){return (Number(t.amount)||0)+(Number(t.extras)||0)}
-function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=-total;gold=grams}else if(type==='purchase'){cash=-total;gold=grams}else if(type==='receive')cash=-total;else if(type==='pay')cash=total;else if(type==='gold_in')gold=grams;else if(type==='gold_out')gold=-grams;return{cashDelta:cash,goldDelta:gold}}
+function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=-total;gold=grams}else if(type==='purchase'){cash=-total;gold=grams}else if(type==='receive')cash=total;else if(type==='pay')cash=-total;else if(type==='gold_in')gold=grams;else if(type==='gold_out')gold=-grams;return{cashDelta:cash,goldDelta:gold}}
 function render(){ $('customerCount').textContent=fmt(db.customers.length);$('txCount').textContent=fmt(db.transactions.length);
 let cash=db.customers.reduce((s,c)=>s+Math.max(0,-balances(c.id).cash),0),gold=db.customers.reduce((s,c)=>s+Math.max(0,balances(c.id).gold),0);
 $('cashReceivable').textContent=fmt(cash);$('goldPayable').textContent=fmt(gold);
