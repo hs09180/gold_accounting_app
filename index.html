@@ -46,14 +46,15 @@ const TYPES={sale:'فروش طلا به مشتری',purchase:'خرید طلا ا
 const emptyDB=()=>({version:3,customers:[],transactions:[]});
 let db;try{db=JSON.parse(localStorage.getItem('zarnigar_db')||'null')||emptyDB()}catch(e){db=emptyDB()}
 if(!Array.isArray(db.customers)||!Array.isArray(db.transactions))db=emptyDB();
-// Version 3 fixes the direction of every gold balance; migrate old local records once.
+// Version 3 migration, followed by version 4 correction for gold sales.
 if((Number(db.version)||0)<3){for(const t of db.transactions){t.goldDelta=-(Number(t.goldDelta)||0)}db.version=3;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
+if((Number(db.version)||0)<4){for(const t of db.transactions){if(t.type==='sale')t.goldDelta=Math.abs(Number(t.grams)||0)}db.version=4;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function persist(){db.version=3;try{localStorage.setItem('zarnigar_db',JSON.stringify(db));render()}catch(e){alert('فضای ذخیره‌سازی کافی نیست. فوراً از اطلاعات پشتیبان بگیرید.');}}
 function balances(id){let cash=0,gold=0;for(const t of db.transactions){if(t.customerId===id){cash+=Number(t.cashDelta)||0;gold+=Number(t.goldDelta)||0}}return{cash,gold}}
 function amountOf(t){return (Number(t.amount)||0)+(Number(t.extras)||0)}
-function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=total;gold=-grams}else if(type==='purchase'){cash=-total;gold=grams}else if(type==='receive')cash=-total;else if(type==='pay')cash=total;else if(type==='gold_in')gold=grams;else if(type==='gold_out')gold=-grams;return{cashDelta:cash,goldDelta:gold}}
+function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=total;gold=grams}else if(type==='purchase'){cash=-total;gold=grams}else if(type==='receive')cash=-total;else if(type==='pay')cash=total;else if(type==='gold_in')gold=grams;else if(type==='gold_out')gold=-grams;return{cashDelta:cash,goldDelta:gold}}
 function render(){ $('customerCount').textContent=fmt(db.customers.length);$('txCount').textContent=fmt(db.transactions.length);
 let cash=db.customers.reduce((s,c)=>s+Math.max(0,balances(c.id).cash),0),gold=db.customers.reduce((s,c)=>s+Math.max(0,balances(c.id).gold),0);
 $('cashReceivable').textContent=fmt(cash);$('goldPayable').textContent=fmt(gold);
