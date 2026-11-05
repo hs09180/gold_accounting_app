@@ -12,10 +12,10 @@
 </style></head>
 <body><main class="app">
 <header class="top"><div class="brand"><div class="logo">✦</div><div><h1>زرنگار</h1><small>حسابداری هوشمند طلافروشی · نسخه ۲</small></div></div><div class="actions top-actions"><button class="secondary" id="backupBtn">خروجی پشتیبان</button><button class="secondary" id="restoreBtn">بازیابی پشتیبان</button><button class="gold" id="installBtn" hidden>نصب برنامه</button></div></header>
-<div class="notice">اطلاعات فعلاً روی همین مرورگر و دستگاه ذخیره می‌شود. پیش از تعویض گوشی یا پاک‌کردن اطلاعات مرورگر، حتماً فایل پشتیبان بگیرید. مانده مثبت نقدی یعنی مشتری به فروشگاه بدهکار است؛ مانده مثبت طلا یعنی فروشگاه به مشتری طلا بدهکار است.</div>
+<div class="notice">اطلاعات فعلاً روی همین مرورگر و دستگاه ذخیره می‌شود. پیش از تعویض گوشی یا پاک‌کردن اطلاعات مرورگر، حتماً فایل پشتیبان بگیرید. مانده منفی پولی یعنی مشتری به فروشگاه بدهکار است؛ مانده مثبت طلا یعنی فروشگاه به مشتری طلا بدهکار است.</div>
 <section class="grid">
 <div class="card stat"><small>مشتریان</small><strong id="customerCount">۰</strong><span>تعداد مشتریان ثبت‌شده</span></div>
-<div class="card stat"><small>طلب نقدی فروشگاه</small><strong id="cashReceivable">۰</strong><span>تومان · مانده‌های مثبت</span></div>
+<div class="card stat"><small>بدهی پولی مشتریان</small><strong id="cashReceivable">۰</strong><span>تومان · قدرمطلق مانده‌های منفی</span></div>
 <div class="card stat"><small>بدهی طلای فروشگاه</small><strong id="goldPayable">۰</strong><span>گرم · مانده‌های مثبت</span></div>
 <div class="card stat"><small>رویدادهای حساب</small><strong id="txCount">۰</strong><span>تعداد ثبت‌ها</span></div>
 </section>
@@ -43,20 +43,21 @@ const fmt=n=>Number(n||0).toLocaleString('fa-IR',{maximumFractionDigits:3});
 const today=()=>new Date().toLocaleDateString('en-CA');
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'id-'+Date.now()+'-'+Math.random().toString(16).slice(2);
 const TYPES={sale:'فروش طلا به مشتری',purchase:'خرید طلا از مشتری',receive:'دریافت وجه از مشتری',pay:'پرداخت وجه به مشتری',gold_in:'دریافت طلا از مشتری',gold_out:'تحویل طلا به مشتری'};
-const emptyDB=()=>({version:3,customers:[],transactions:[]});
+const emptyDB=()=>({version:5,customers:[],transactions:[]});
 let db;try{db=JSON.parse(localStorage.getItem('zarnigar_db')||'null')||emptyDB()}catch(e){db=emptyDB()}
 if(!Array.isArray(db.customers)||!Array.isArray(db.transactions))db=emptyDB();
-// Version 3 migration, followed by version 4 correction for gold sales.
-if((Number(db.version)||0)<3){for(const t of db.transactions){t.goldDelta=-(Number(t.goldDelta)||0)}db.version=3;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
-if((Number(db.version)||0)<4){for(const t of db.transactions){if(t.type==='sale')t.goldDelta=Math.abs(Number(t.grams)||0)}db.version=4;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
+// Migrate legacy balances to the confirmed customer-account sign convention.
+if((Number(db.version)||0)<3){for(const t of db.transactions){t.goldDelta=-(Number(t.goldDelta)||0)}db.version=3;}
+if((Number(db.version)||0)<4){for(const t of db.transactions){if(t.type==='sale')t.goldDelta=Math.abs(Number(t.grams)||0)}db.version=4;}
+if((Number(db.version)||0)<5){for(const t of db.transactions){if(t.type==='sale'){t.cashDelta=-Math.abs(Number(t.cashDelta)||((Number(t.amount)||0)+(Number(t.extras)||0)));t.goldDelta=Math.abs(Number(t.grams)||0)}}db.version=5;try{localStorage.setItem('zarnigar_db',JSON.stringify(db))}catch(e){}}
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function persist(){db.version=3;try{localStorage.setItem('zarnigar_db',JSON.stringify(db));render()}catch(e){alert('فضای ذخیره‌سازی کافی نیست. فوراً از اطلاعات پشتیبان بگیرید.');}}
+function persist(){db.version=5;try{localStorage.setItem('zarnigar_db',JSON.stringify(db));render()}catch(e){alert('فضای ذخیره‌سازی کافی نیست. فوراً از اطلاعات پشتیبان بگیرید.');}}
 function balances(id){let cash=0,gold=0;for(const t of db.transactions){if(t.customerId===id){cash+=Number(t.cashDelta)||0;gold+=Number(t.goldDelta)||0}}return{cash,gold}}
 function amountOf(t){return (Number(t.amount)||0)+(Number(t.extras)||0)}
-function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=total;gold=grams}else if(type==='purchase'){cash=-total;gold=grams}else if(type==='receive')cash=-total;else if(type==='pay')cash=total;else if(type==='gold_in')gold=grams;else if(type==='gold_out')gold=-grams;return{cashDelta:cash,goldDelta:gold}}
+function deltas(type,grams,amount){let cash=0,gold=0;const total=amount;if(type==='sale'){cash=-total;gold=grams}else if(type==='purchase'){cash=-total;gold=grams}else if(type==='receive')cash=-total;else if(type==='pay')cash=total;else if(type==='gold_in')gold=grams;else if(type==='gold_out')gold=-grams;return{cashDelta:cash,goldDelta:gold}}
 function render(){ $('customerCount').textContent=fmt(db.customers.length);$('txCount').textContent=fmt(db.transactions.length);
-let cash=db.customers.reduce((s,c)=>s+Math.max(0,balances(c.id).cash),0),gold=db.customers.reduce((s,c)=>s+Math.max(0,balances(c.id).gold),0);
+let cash=db.customers.reduce((s,c)=>s+Math.max(0,-balances(c.id).cash),0),gold=db.customers.reduce((s,c)=>s+Math.max(0,balances(c.id).gold),0);
 $('cashReceivable').textContent=fmt(cash);$('goldPayable').textContent=fmt(gold);
 const q=$('customerSearch').value.trim().toLocaleLowerCase('fa');
 $('customerList').innerHTML=db.customers.filter(c=>(c.name+' '+(c.phone||'')).toLocaleLowerCase('fa').includes(q)).map(c=>{const b=balances(c.id);return '<div class="item"><div><b>'+esc(c.name)+'</b><span class="muted">'+esc(c.phone||'بدون شماره')+' · نقدی: '+fmt(b.cash)+' تومان · طلا: '+fmt(b.gold)+' گرم</span></div><div class="item-actions"><button class="smallbtn secondary" data-action="ledger" data-id="'+c.id+'">دفتر</button><button class="smallbtn secondary" data-action="edit-customer" data-id="'+c.id+'">ویرایش</button></div></div>'}).join('')||'<div class="empty">مشتری ثبت نشده است.</div>';
@@ -73,7 +74,7 @@ $('cancelCustomer').onclick=()=>$('customerDialog').close();
 $('customerForm').onsubmit=e=>{e.preventDefault();const id=$('editCustomerId').value||uid();const c={id,name:$('customerName').value.trim(),phone:$('customerPhone').value.trim(),note:$('customerNote').value.trim()};if(!c.name)return;const i=db.customers.findIndex(x=>x.id===id);if(i>=0)db.customers[i]=c;else db.customers.push(c);$('customerDialog').close();persist()};
 $('customerList').addEventListener('click',e=>{const b=e.target.closest('button[data-action]');if(!b)return;const c=db.customers.find(x=>x.id===b.dataset.id);if(!c)return;if(b.dataset.action==='ledger'){ $('ledgerCustomer').value=c.id;showTab('ledger')}else if(b.dataset.action==='edit-customer')openCustomer(c)});
 function renderLedger(){const id=$('ledgerCustomer').value,c=db.customers.find(x=>x.id===id);if(!c){$('ledgerSummary').innerHTML='';$('ledgerList').innerHTML='<div class="empty">ابتدا مشتری ثبت کنید.</div>';return}
-const b=balances(id);$('ledgerSummary').innerHTML='<div><small>مانده نقدی</small><b class="'+(b.cash>=0?'positive':'negative')+'">'+fmt(b.cash)+' تومان</b><small>'+(b.cash>=0?'بدهکار به فروشگاه':'طلب مشتری')+'</small></div><div><small>مانده طلا</small><b class="'+(b.gold>=0?'positive':'negative')+'">'+fmt(b.gold)+' گرم</b><small>'+(b.gold>=0?'بدهی طلای فروشگاه':'طلب طلای فروشگاه')+'</small></div>';
+const b=balances(id);$('ledgerSummary').innerHTML='<div><small>مانده نقدی</small><b class="'+(b.cash>=0?'positive':'negative')+'">'+fmt(b.cash)+' تومان</b><small>'+(b.cash<=0?'بدهکار به فروشگاه':'طلب مشتری')+'</small></div><div><small>مانده طلا</small><b class="'+(b.gold>=0?'positive':'negative')+'">'+fmt(b.gold)+' گرم</b><small>'+(b.gold>=0?'بدهی طلای فروشگاه':'طلب طلای فروشگاه')+'</small></div>';
 const rows=db.transactions.filter(t=>t.customerId===id).slice().sort((a,b)=>b.date.localeCompare(a.date));
 $('ledgerList').innerHTML=rows.map(t=>'<div class="item"><div><b>'+esc(t.typeLabel||TYPES[t.type]||t.type)+'</b><span class="muted">'+esc(t.date)+' · '+esc(t.note||'بدون توضیح')+'</span><div class="muted">وزن: '+fmt(t.grams)+' گرم · مبلغ کل: '+fmt(amountOf(t))+' تومان</div><div class="muted">تغییر مانده نقدی: '+fmt(t.cashDelta)+' · تغییر مانده طلا: '+fmt(t.goldDelta)+'</div></div><div class="item-actions no-print"><button class="smallbtn secondary" data-action="edit-tx" data-id="'+t.id+'">ویرایش</button><button class="smallbtn danger" data-action="delete-tx" data-id="'+t.id+'">حذف</button></div></div>').join('')||'<div class="empty">گردشی برای این مشتری ثبت نشده است.</div>'}
 $('ledgerCustomer').onchange=renderLedger;
