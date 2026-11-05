@@ -1,0 +1,16 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'ir.zarnigar.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'ir.zarnigar.app'
+        minSdk 23
+        targetSdk 28
+        versionCode 4
+        versionName '4.0'
+    }
+}
