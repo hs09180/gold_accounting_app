@@ -12,6 +12,7 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'capacitor.config.json'
+      - 'accounting.test.cjs'
       - '.github/workflows/build-android.yml'
 
 permissions:
@@ -27,6 +28,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Test accounting balance rules
+        run: node --test accounting.test.cjs
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
