@@ -69,3 +69,11 @@ test('shop selling gold to a named customer is a sale', () => {
 test('gold trade can be transferred to the form without a cash amount', () => {
   assert.match(html, /if\(\['receive','pay'\]\.includes\(type\)&&amount\+extras<=0\)/);
 });
+
+test('exact customer purchase sentence with per-gram price is classified as shop sale', () => {
+  assert.equal(detectVoiceType('حسین سمیعی ۲ گرم طلا خرید به هر گرم ۲۵۵۰۰۰۰۰ تومان'), 'sale');
+  assert.equal(detectVoiceType('حسین سمیعی 2 گرم طلا خرید به هر گرم 25500000 تومان'), 'sale');
+});
+test('directional purchase phrase is classified as shop purchase', () => {
+  assert.equal(detectVoiceType('خرید ۲ گرم طلا از حسین سمیعی'), 'purchase');
+});
