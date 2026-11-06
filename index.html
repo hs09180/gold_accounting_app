@@ -142,10 +142,10 @@ function detectVoiceType(raw){
   if(has(/(?:پرداخت|دادم)\s*(?:وجه|پول)?\s*(?:به|برای)|(?:به|برای)\s+.{1,55}\s+(?:پرداخت کردم|پول دادم)/)) return 'pay';
   if(has(/(?:واریز|دریافت وجه|دریافت پول|پول واریز|واریز کرد|واریز نمود)/)) return 'receive';
 
-  // A customer buying gold from the shop is the common spoken form:
-  // "حسین سمیعی ۲ گرم طلا خرید". Do not require "خرید" to be the final word.
-  if(s.includes('خرید') || has(/(?:^|\s)فروش(?:\s|$)/) ||
-     has(/(?:فروختیم|به\s+مشتری\s+فروخت)/)) return 'sale';
+  // Customer-side purchase wording means the shop sold gold.
+  // Keep the directional "خرید از مشتری" rule above as the shop-buying case.
+  // Match the verb anywhere, even when price details follow it.
+  if (/(?:خرید|خریده|خریداری|می\\s*خرد|فروش|فروخت|فروخته)/.test(s)) return 'sale';
   return null;
 }
 function parseVoicePrice(raw,grams){
