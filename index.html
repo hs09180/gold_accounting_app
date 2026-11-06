@@ -141,7 +141,7 @@ function detectVoiceType(raw){
 
   // "Hosein bought gold" means the shop sold gold to Hosein.
   if(/(?:^|\s)فروش(?:\s|$)/.test(s) ||
-     /(?:خرید|خریده|خرید\s*کرد|خریداری\s*کرد)(?:ه)?\s*$/.test(s) ||
+     /(?:^|\s)(?:خرید|خریده|خرید\s*کرد|خریداری\s*کرد)(?:\s|$)/.test(s) ||
      /(?:از\s+ما|از\s+فروشگاه|از\s+مغازه)\s+خرید/.test(s) ||
      /(?:فروختیم|به\s+مشتری\s+فروخت)/.test(s))return 'sale';
 
