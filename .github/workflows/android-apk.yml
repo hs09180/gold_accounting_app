@@ -20,6 +20,24 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
+      - name: Require persistent signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_BASE64" || (echo "Missing GitHub Actions secret KEYSTORE_BASE64" && exit 1)
+          test -n "$KEYSTORE_PASSWORD" || (echo "Missing GitHub Actions secret KEYSTORE_PASSWORD" && exit 1)
+          test -n "$KEY_ALIAS" || (echo "Missing GitHub Actions secret KEY_ALIAS" && exit 1)
+          test -n "$KEY_PASSWORD" || (echo "Missing GitHub Actions secret KEY_PASSWORD" && exit 1)
+          mkdir -p "$RUNNER_TEMP/zarnigar-signing"
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/zarnigar-signing/release.jks"
+          echo "ZARNIGAR_KEYSTORE_PATH=$RUNNER_TEMP/zarnigar-signing/release.jks" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+
       - name: Set up Node and test accounting rules
         uses: actions/setup-node@v4
         with:
@@ -51,12 +69,12 @@ jobs:
           mkdir -p app/src/main/assets/www
           cp index.html manifest.json icon.svg app/src/main/assets/www/
 
-      - name: Build debug APK
+      - name: Build APK with persistent signing
         run: gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: zarnigar-android-debug-apk
+          name: zarnigar-android-stable-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
