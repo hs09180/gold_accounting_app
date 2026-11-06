@@ -85,7 +85,7 @@ const voiceFns = new Function(html.slice(voiceFnsStart, voiceFnsEnd) + '; return
 
 test('per-gram voice price is multiplied by gold weight', () => {
   const phrase = 'حسین سمیعی ۲ گرم طلا خرید به هر گرم ۲۵۵۰۰۰۰۰ تومان';
-  const gramsMatch = phrase.match(/(.{1,55}?)\\s*گرم/);
+  const gramsMatch = phrase.match(/(.{1,55}?)\s*گرم/);
   const grams = gramsMatch ? voiceFns.spokenNumber(gramsMatch[1].split(' ').slice(-5).join(' ')) : 0;
   const price = voiceFns.parseVoicePrice(phrase, grams);
   assert.equal(voiceFns.detectVoiceType(phrase), 'sale');
