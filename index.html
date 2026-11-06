@@ -134,7 +134,7 @@ function detectVoiceType(raw){
      /(?:خرید|خریداری)\s+از\s+(?:مشتری|آقای|خانم)/.test(s) ||
      /(?:به ما|به فروشگاه|به مغازه)\s+فروخت/.test(s) ||
      /فروخت(?:ه)?\s*(?:است|کرد|نمود)?\s*$/.test(s))return 'purchase';
-  if(/(?:^|\s)خرید(?:\s|$)/.test(s))return 'sale';
+  if(/(?:^|\s)خرید(?:\s|$)/.test(s) || s.includes('خرید'))return 'sale';
   return null;
 }
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
