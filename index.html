@@ -145,7 +145,7 @@ function detectVoiceType(raw){
   // Customer-side purchase wording means the shop sold gold.
   // Keep the directional "خرید از مشتری" rule above as the shop-buying case.
   // Match the verb anywhere, even when price details follow it.
-  if (/(?:خرید|خریده|خریداری|می\\s*خرد|فروش|فروخت|فروخته)/.test(s)) return 'sale';
+  if (/(?:خرید|خریده|خریداری|می\s*خرد|فروش|فروخت|فروخته)/.test(s)) return 'sale';
   return null;
 }
 function parseVoicePrice(raw,grams){

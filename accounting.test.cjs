@@ -77,3 +77,26 @@ test('exact customer purchase sentence with per-gram price is classified as shop
 test('directional purchase phrase is classified as shop purchase', () => {
   assert.equal(detectVoiceType('خرید ۲ گرم طلا از حسین سمیعی'), 'purchase');
 });
+
+
+const voiceFnsStart = html.indexOf('function normalizeDigits');
+const voiceFnsEnd = html.indexOf('function voiceCustomer');
+const voiceFns = new Function(html.slice(voiceFnsStart, voiceFnsEnd) + '; return {normalizeDigits, spokenNumber, detectVoiceType, parseVoicePrice};')();
+
+test('per-gram voice price is multiplied by gold weight', () => {
+  const phrase = 'حسین سمیعی ۲ گرم طلا خرید به هر گرم ۲۵۵۰۰۰۰۰ تومان';
+  const gramsMatch = phrase.match(/(.{1,55}?)\s*گرم/);
+  const grams = gramsMatch ? voiceFns.spokenNumber(gramsMatch[1].split(' ').slice(-5).join(' ')) : 0;
+  const price = voiceFns.parseVoicePrice(phrase, grams);
+  assert.equal(voiceFns.detectVoiceType(phrase), 'sale');
+  assert.equal(grams, 2);
+  assert.equal(price.pricePerGram, 25500000);
+  assert.equal(price.amount, 51000000);
+});
+
+test('spoken and numeric forms of the same per-gram price calculate the same total', () => {
+  const spoken = voiceFns.parseVoicePrice('۲ گرم طلا خرید به هر گرم بیست و پنج میلیون و پانصد هزار تومان', 2);
+  const numeric = voiceFns.parseVoicePrice('۲ گرم طلا خرید به هر گرم ۲۵۵۰۰۰۰۰ تومان', 2);
+  assert.equal(spoken.amount, 51000000);
+  assert.equal(numeric.amount, 51000000);
+});
