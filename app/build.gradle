@@ -2,6 +2,11 @@ plugins {
     id 'com.android.application'
 }
 
+def signingStoreFile = System.getenv('ZARNIGAR_KEYSTORE_PATH')
+def signingStorePassword = System.getenv('KEYSTORE_PASSWORD')
+def signingKeyAlias = System.getenv('KEY_ALIAS')
+def signingKeyPassword = System.getenv('KEY_PASSWORD')
+
 android {
     namespace 'ir.zarnigar.app'
     compileSdk 35
@@ -10,7 +15,26 @@ android {
         applicationId 'ir.zarnigar.app'
         minSdk 23
         targetSdk 35
-        versionCode 7
-        versionName '5.2'
+        versionCode 8
+        versionName '5.3'
+    }
+
+    signingConfigs {
+        stable {
+            if (signingStoreFile) {
+                storeFile file(signingStoreFile)
+                storePassword signingStorePassword
+                keyAlias signingKeyAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            if (signingStoreFile) {
+                signingConfig signingConfigs.stable
+            }
+        }
     }
 }
