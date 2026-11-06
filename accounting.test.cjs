@@ -48,3 +48,24 @@ test('Android APK includes native Persian speech bridge and microphone permissio
   assert.match(java, /addJavascriptInterface/);
   assert.match(manifest, /android.permission.RECORD_AUDIO/);
 });
+
+const typeStart = html.indexOf('function detectVoiceType');
+const voiceCustomerStart = html.indexOf('function voiceCustomer');
+assert.ok(typeStart >= 0 && voiceCustomerStart > typeStart, 'voice operation detector must exist');
+const detectVoiceType = new Function(html.slice(typeStart, voiceCustomerStart) + '; return detectVoiceType;')();
+
+test('customer saying they bought gold is recorded as a shop sale', () => {
+  assert.equal(detectVoiceType('حسین سمیعی 2 گرم طلا خرید'), 'sale');
+});
+test('customer saying they sold gold is recorded as a shop purchase', () => {
+  assert.equal(detectVoiceType('حسین سمیعی 2 گرم طلا فروخت'), 'purchase');
+});
+test('shop buying gold from a named customer is a purchase', () => {
+  assert.equal(detectVoiceType('خرید 2 گرم از حسین سمیعی'), 'purchase');
+});
+test('shop selling gold to a named customer is a sale', () => {
+  assert.equal(detectVoiceType('2 گرم طلا به حسین سمیعی فروختیم'), 'sale');
+});
+test('gold trade can be transferred to the form without a cash amount', () => {
+  assert.match(html, /if\(\['receive','pay'\]\.includes\(type\)&&amount\+extras<=0\)/);
+});
