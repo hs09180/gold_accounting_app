@@ -148,6 +148,12 @@ function detectVoiceType(raw){
   if(/(?:فروخت(?:ه)?\s*(?:است|کرد|نمود)?\s*$)/.test(s))return 'purchase';
   return null;
 }
+function parseVoicePrice(raw,grams){
+  const perGram=raw.match(/(?:به\s*)?هر\s*گرم\s*(.+?)(?:\s*تومان|$)/);
+  if(perGram){const pricePerGram=spokenNumber(perGram[1]);return{pricePerGram,amount:pricePerGram>0&&grams>0?pricePerGram*grams:0}}
+  const total=raw.match(/(?:مبلغ|به مبلغ|به قیمت|ارزش)\s*(.+?)(?:\s*تومان|$)/);
+  return{pricePerGram:0,amount:total?spokenNumber(total[1]):0};
+}
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
 function voiceError(message){$('voiceResult').innerHTML='<div class="notice">'+esc(message)+'</div>';$('voiceStatus').textContent='فرمان نیاز به اصلاح دارد.'}
 function voiceBalance(c){const b=balances(c.id);const cashText=b.cash<0?'مشتری '+fmt(-b.cash)+' تومان به فروشگاه بدهکار است':b.cash>0?'فروشگاه '+fmt(b.cash)+' تومان به مشتری بدهکار است':'حساب پولی تسویه است';const goldText=b.gold>0?'فروشگاه '+fmt(b.gold)+' گرم طلا به مشتری بدهکار است':b.gold<0?'مشتری '+fmt(-b.gold)+' گرم طلا به فروشگاه بدهکار است':'حساب طلا تسویه است';return '<div class="notice"><b>'+esc(c.name)+'</b><br>مانده پولی: <b class="'+(b.cash<0?'negative':'positive')+'">'+fmt(b.cash)+' تومان</b> — '+esc(cashText)+'<br>مانده طلایی: <b class="'+(b.gold>0?'positive':'negative')+'">'+fmt(b.gold)+' گرم</b> — '+esc(goldText)+'</div><button id="voiceSpeakBalance" class="secondary">🔊 شنیدن مانده حساب</button><button id="voiceOpenLedger" class="gold">بازکردن دفتر گردش</button>'}
@@ -160,10 +166,10 @@ if(!customer)return voiceError('نام مشتری در فهرست پیدا نش�
 const type=detectVoiceType(raw);
 if(!type)return voiceError('نوع عملیات مشخص نیست. بگویید فروش، خرید، واریز وجه، پرداخت وجه، دریافت طلا یا تحویل طلا.');
 const gm=raw.match(/(.{1,55}?)\s*گرم/);const grams=gm?spokenNumber(gm[1].split(' ').slice(-5).join(' ')):0;
-const am=raw.match(/(?:مبلغ|به مبلغ|به قیمت|ارزش)\s*(.+?)(?:\s*تومان|$)/);const amount=am?spokenNumber(am[1]):0;
+const price=parseVoicePrice(raw,grams);const amount=price.amount;
 if(['sale','purchase','gold_in','gold_out'].includes(type)&&grams<=0)return voiceError('وزن را مشخص کنید؛ مثلاً «دو و نیم گرم».');
 if(['receive','pay'].includes(type)&&amount<=0)return voiceError('مبلغ را مشخص کنید؛ مثلاً «بیست میلیون تومان».');
-$('voiceResult').innerHTML='<div class="notice">فرمان تشخیص داده شد؛ قبل از ثبت بررسی کنید:<br>مشتری: <b>'+esc(customer.name)+'</b><br>نوع: '+esc(TYPES[type])+'<br>وزن: '+fmt(grams)+' گرم<br>مبلغ: '+(amount>0?fmt(amount)+' تومان':'هنوز وارد نشده؛ در فرم قابل تکمیل است')+'<br><b>هیچ تغییری هنوز در حساب ثبت نشده است.</b></div><button id="voiceApply" class="gold">انتقال به فرم ثبت</button>';$('voiceApply').onclick=()=>{$('txCustomer').value=customer.id;$('txType').value=type;$('txGrams').value=grams||'';$('txAmount').value=amount||'';$('txExtras').value='0';$('txDate').value=today();$('txNote').value='ثبت از طریق فرمان صوتی';showTab('transaction');$('voiceStatus').textContent='فرم آماده است؛ پس از کنترل اطلاعات، ذخیره رویداد را بزنید.'}
+$('voiceResult').innerHTML='<div class="notice">فرمان تشخیص داده شد؛ قبل از ثبت بررسی کنید:<br>مشتری: <b>'+esc(customer.name)+'</b><br>نوع: '+esc(TYPES[type])+'<br>وزن: '+fmt(grams)+' گرم<br>قیمت هر گرم: '+(price.pricePerGram>0?fmt(price.pricePerGram)+' تومان':'مشخص نشده')+'<br>مبلغ کل: '+(amount>0?fmt(amount)+' تومان':'هنوز وارد نشده؛ در فرم قابل تکمیل است')+'<br><b>هیچ تغییری هنوز در حساب ثبت نشده است.</b></div><button id="voiceApply" class="gold">انتقال به فرم ثبت</button>';$('voiceApply').onclick=()=>{$('txCustomer').value=customer.id;$('txType').value=type;$('txGrams').value=grams||'';$('txAmount').value=amount||'';$('txExtras').value='0';$('txDate').value=today();$('txNote').value='ثبت از طریق فرمان صوتی';showTab('transaction');$('voiceStatus').textContent='فرم آماده است؛ پس از کنترل اطلاعات، ذخیره رویداد را بزنید.'}
 }catch(err){console.error('Zarnigar voice parse error:',err);voiceError('در بررسی فرمان خطای داخلی رخ داد. متن فرمان را دوباره بررسی کنید.');}
 };
 if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
