@@ -123,28 +123,28 @@ function spokenNumber(s){let x=normalizeDigits(s);const direct=x.match(/^-?\d+(?
 function detectVoiceType(raw){
   // Normalize Persian speech-to-text output before classifying the business action.
   const s=normalizeDigits(raw).toLocaleLowerCase('fa')
-    .replace(/[.!؟?،؛,:]+/g,' ').replace(/\\s+/g,' ').trim();
+    .replace(/[.!؟?،؛,:]+/g,' ').replace(/\s+/g,' ').trim();
   if(!s)return null;
 
   // First distinguish a shop purchase FROM the customer; this must precede
   // the generic word "خرید", which often means the customer bought from us.
-  if(/از\\s+.{1,70}\\s+(?:طلا\\s*)?(?:خریدیم|خریدم|خریداری\\s*کردیم|خریداری\\s*کردم)(?:\\s|$)/.test(s) ||
-     /(?:خرید|خریداری)\\s+از\\s+(?:مشتری|آقای|خانم)/.test(s) ||
-     /(?:به\\s+ما|به\\s+فروشگاه|به\\s+مغازه)\\s+فروخت/.test(s) ||
-     /(?:از\\s+)?(?:مشتری|ایشان)\\s+.{0,35}\\s+به\\s+ما\\s+فروخت/.test(s)) return 'purchase';
+  if(/از\s+.{1,70}\s+(?:طلا\s*)?(?:خریدیم|خریدم|خریداری\s*کردیم|خریداری\s*کردم)(?:\s|$)/.test(s) ||
+     /(?:خرید|خریداری)\s+از\s+(?:مشتری|آقای|خانم)/.test(s) ||
+     /(?:به\s+ما|به\s+فروشگاه|به\s+مغازه)\s+فروخت/.test(s) ||
+     /(?:از\s+)?(?:مشتری|ایشان)\s+.{0,35}\s+به\s+ما\s+فروخت/.test(s)) return 'purchase';
 
-  if(/(?:تحویل|دادن)\\s*(?:طلا)?|طلا\\s*تحویل/.test(s))return 'gold_out';
-  if(/(?:دریافت|گرفتن)\\s*(?:طلا)|طلا\\s*(?:دریافت|گرفت)/.test(s))return 'gold_in';
-  if(/(?:پرداخت|دادم)\\s*(?:وجه|پول)?\\s*(?:به|برای)|(?:به|برای)\\s+.{1,55}\\s+(?:پرداخت کردم|پول دادم)/.test(s))return 'pay';
+  if(/(?:تحویل|دادن)\s*(?:طلا)?|طلا\s*تحویل/.test(s))return 'gold_out';
+  if(/(?:دریافت|گرفتن)\s*(?:طلا)|طلا\s*(?:دریافت|گرفت)/.test(s))return 'gold_in';
+  if(/(?:پرداخت|دادم)\s*(?:وجه|پول)?\s*(?:به|برای)|(?:به|برای)\s+.{1,55}\s+(?:پرداخت کردم|پول دادم)/.test(s))return 'pay';
   if(/(?:واریز|دریافت وجه|دریافت پول|پول واریز|واریز کرد|واریز نمود)/.test(s))return 'receive';
 
   // "Customer bought 2 grams" means our shop sold gold to that customer.
-  if(/(?:^|\\s)فروش(?:\\s|$)/.test(s) ||
-     /(?:خرید|خریده|خرید\\s*کرد|خریداری\\s*کرد)(?:ه)?\\s*$/.test(s) ||
-     /(?:از\\s+ما|از\\s+فروشگاه|از\\s+مغازه)\\s+خرید/.test(s) ||
-     /(?:فروختیم|به\\s+مشتری\\s+فروخت)/.test(s))return 'sale';
+  if(/(?:^|\s)فروش(?:\s|$)/.test(s) ||
+     /(?:خرید|خریده|خرید\s*کرد|خریداری\s*کرد)(?:ه)?\s*$/.test(s) ||
+     /(?:از\s+ما|از\s+فروشگاه|از\s+مغازه)\s+خرید/.test(s) ||
+     /(?:فروختیم|به\s+مشتری\s+فروخت)/.test(s))return 'sale';
 
-  if(/(?:فروخت(?:ه)?\\s*(?:است|کرد|نمود)?\\s*$)/.test(s))return 'purchase';
+  if(/(?:فروخت(?:ه)?\s*(?:است|کرد|نمود)?\s*$)/.test(s))return 'purchase';
   return null;
 }
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
