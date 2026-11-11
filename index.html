@@ -151,23 +151,34 @@ function detectVoiceType(raw){
 }
 function parseVoicePrice(raw,grams){
   const s=normalizeDigits(raw).replace(/[،؛,:]+/g,' ').replace(/\s+/g,' ').trim();
-  // Unit-price forms: «هر گرم ۲۵ میلیون تومان»، «گرمی بیست و پنج میلیون».
-  const unit=s.match(/(?:به\s*)?(?:هر\s*گرم|هرگرم|گرمی)(?:\s*طلا)?\s*(?:قیمت\s*)?(.+?)(?=\s*تومان(?:\s|$)|$)/u);
+  const unit=s.match(/(?:به\s*)?(?:هر\s*گرم|هرگرم|گرمی)(?:\s*طلا)?(?:\s*قیمت\s*)?(.+?)(?=\s*تومان(?:\s|$)|$)/u);
   if(unit){
     const value=spokenNumber(unit[1].trim());
     if(value>0)return{pricePerGram:value,amount:grams>0?value*grams:0};
   }
-  // Explicit total-price forms.
   const total=s.match(/(?:مبلغ(?:\s*کل)?|به\s*مبلغ|قیمت(?:\s*کل)?|به\s*قیمت|ارزش)\s*(.+?)(?=\s*تومان(?:\s|$)|$)/u);
   if(total){
     const amount=spokenNumber(total[1].trim());
     if(amount>0)return{pricePerGram:0,amount};
   }
-  // Standalone amounts are common in deposits/payments:
-  // «۵۰۰ میلیون تومان واریز کرد» or «پنج میلیون تومان پرداخت کرد».
-  const standalone=s.match(/(?:^|\s)([\d.]+|(?:[\p{L}]+(?:\s+و\s+)?){1,6})(?=\s*تومان(?:\s|$))/u);
-  const amount=standalone?spokenNumber(standalone[1].trim()):0;
-  return{pricePerGram:0,amount};
+  // Capture the complete phrase before «تومان», then walk backwards over
+  // number words/digits and scale words. This keeps «۵۰۰ میلیون» together.
+  const beforeToman=s.match(/(.+?)\s*تومان(?:\s|$)/u);
+  if(beforeToman){
+    const tokens=beforeToman[1].trim().split(/\s+/);
+    const allowed=new Set([...Object.keys(smallNums),'و','هزار','میلیون','میلیارد']);
+    const picked=[];
+    for(let i=tokens.length-1;i>=0;i--){
+      const token=tokens[i];
+      if(allowed.has(token)||/^-?\d+(?:\.\d+)?$/.test(token)){picked.unshift(token);continue}
+      break;
+    }
+    if(picked.length){
+      const amount=spokenNumber(picked.join(' '));
+      if(amount>0)return{pricePerGram:0,amount};
+    }
+  }
+  return{pricePerGram:0,amount:0};
 }
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
 function parseVoiceGrams(raw){
