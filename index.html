@@ -188,7 +188,7 @@ function parseVoicePrice(raw,grams){
   return{pricePerGram:0,amount:0};
 }
 function voiceCustomer(raw){
-  const clean=value=>normalizeDigits(value).replace(/[.!؟?،؛,:]+/g,' ').replace(/\\s+/g,' ').trim().toLocaleLowerCase('fa');
+  const clean=value=>normalizeDigits(value).replace(/[.!؟?،؛,:]+/g,' ').replace(/\s+/g,' ').replace(/ي/g,'ی').replace(/ك/g,'ک').trim().toLocaleLowerCase('fa');
   const command=clean(raw);
   return db.customers.filter(c=>c.name&&command.includes(clean(c.name)))
     .sort((a,b)=>clean(b.name).length-clean(a.name).length)[0]||null;
