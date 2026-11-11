@@ -150,9 +150,12 @@ function detectVoiceType(raw){
   return null;
 }
 function parseVoicePrice(raw,grams){
-  const perGram=raw.match(/(?:به\s*)?هر\s*گرم\s*(.+?)(?:\s*تومان|$)/);
-  if(perGram){const pricePerGram=spokenNumber(perGram[1]);return{pricePerGram,amount:pricePerGram>0&&grams>0?pricePerGram*grams:0}}
-  const total=raw.match(/(?:مبلغ|به مبلغ|به قیمت|ارزش)\s*(.+?)(?:\s*تومان|$)/);
+  const unit=raw.match(/(?:به\\s*)?(?:هر\\s*گرم|هرگرم|گرمی)(?:\\s*طلا)?\\s*(?:قیمت\\s*)?(.+?)(?:\\s*تومان|$)/);
+  if(unit){
+    const pricePerGram=spokenNumber(unit[1].trim());
+    return{pricePerGram,amount:pricePerGram>0&&grams>0?pricePerGram*grams:0};
+  }
+  const total=raw.match(/(?:مبلغ(?:\\s*کل)?|به\\s*مبلغ|قیمت(?:\\s*کل)?|به\\s*قیمت|ارزش)\\s*(.+?)(?:\\s*تومان|$)/);
   return{pricePerGram:0,amount:total?spokenNumber(total[1]):0};
 }
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
