@@ -122,31 +122,33 @@ function normalizeDigits(s){return String(s).replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵
 const smallNums={'صفر':0,'یک':1,'یه':1,'دو':2,'سه':3,'چهار':4,'پنج':5,'شش':6,'شیش':6,'هفت':7,'هشت':8,'نه':9,'ده':10,'یازده':11,'دوازده':12,'سیزده':13,'چهارده':14,'پانزده':15,'شانزده':16,'هفده':17,'هجده':18,'نوزده':19,'بیست':20,'سی':30,'چهل':40,'پنجاه':50,'شصت':60,'هفتاد':70,'هشتاد':80,'نود':90,'صد':100,'دویست':200,'سیصد':300,'چهارصد':400,'پانصد':500,'ششصد':600,'هفتصد':700,'هشتصد':800,'نهصد':900,'نیم':.5};
 function spokenNumber(s){let x=normalizeDigits(s);const direct=x.match(/^-?\d+(?:\.\d+)?$/);if(direct)return Number(direct[0]);let words=x.replace(/\s+و\s+/g,' ').split(/\s+/).filter(Boolean);let total=0,part=0,seen=false;for(const w of words){const n=/^-?\d+(?:\.\d+)?$/.test(w)?Number(w):smallNums[w];if(n!==undefined&&!Number.isNaN(n)){part+=n;seen=true}else if(w==='هزار'){total+=(part||1)*1000;part=0;seen=true}else if(w==='میلیون'){total+=(part||1)*1000000;part=0;seen=true}else if(w==='میلیارد'){total+=(part||1)*1000000000;part=0;seen=true}}return seen?total+part:0}
 function detectVoiceType(raw){
-  // Normalize Persian/Arabic text and digits before interpreting the intent.
   const s=String(raw)
     .replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
     .replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d))
     .replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/\u200c/g,' ')
     .replace(/[.!؟?،؛,:]+/g,' ').replace(/\s+/g,' ').trim().toLocaleLowerCase('fa');
   if(!s)return null;
-  const has=(re)=>re.test(s);
+  const has=re=>re.test(s);
 
-  // Direction matters: "خرید از مشتری" is the shop buying; "مشتری خرید"
-  // means the shop sold to that customer. Apply the directional forms first.
-  if(has(/(?:^|\s)خرید(?:اری)?\s+.{1,70}\s+از\s+/) ||
-     has(/(?:^|\s)از\s+.{1,70}\s+(?:خریدیم|خریدم|خریداری\s*کردیم|خریداری\s*کردم)(?:\s|$)/) ||
-     has(/(?:به\s+ما|به\s+فروشگاه|به\s+مغازه)\s+فروخت/) ||
+  // Gold bought from a customer by the shop.
+  if(has(/(?:^|\s)خرید(?:اری)?\s+.{1,90}\s+از\s+/) ||
+     has(/(?:^|\s)از\s+.{1,90}\s+(?:خریدیم|خریدم|خریداری\s*کردیم|خریداری\s*کردم)(?:\s|$)/) ||
+     has(/فروخت(?:ه)?\s+(?:را\s+)?(?:به|برای)\s+(?:ما|فروشگاه|مغازه)/) ||
+     has(/(?:به|برای)\s+(?:ما|فروشگاه|مغازه)\s+فروخت/) ||
      has(/(?:^|\s)فروخت(?:ه)?\s*(?:است|کرد|نمود)?\s*$/)) return 'purchase';
 
   if(has(/(?:تحویل|دادن)\s*(?:طلا)?|طلا\s*تحویل/)) return 'gold_out';
   if(has(/(?:دریافت|گرفتن)\s*(?:طلا)|طلا\s*(?:دریافت|گرفت)/)) return 'gold_in';
-  if(has(/(?:پرداخت|دادم)\s*(?:وجه|پول)?\s*(?:به|برای)|(?:به|برای)\s+.{1,55}\s+(?:پرداخت کردم|پول دادم)/)) return 'pay';
-  if(has(/(?:واریز|دریافت وجه|دریافت پول|پول واریز|واریز کرد|واریز نمود)/)) return 'receive';
 
-  // Customer-side purchase wording means the shop sold gold.
-  // Keep the directional "خرید از مشتری" rule above as the shop-buying case.
-  // Match the verb anywhere, even when price details follow it.
-  if (/(?:خرید|خریده|خریداری|می\s*خرد|فروش|فروخت|فروخته)/.test(s)) return 'sale';
+  // Paying money to a customer is distinct from a customer paying the shop.
+  if(has(/(?:پرداخت|دادم)\s*(?:وجه|پول)?\s*(?:به|برای)/) ||
+     has(/(?:به|برای)\s+.{1,65}\s+(?:پرداخت کردم|پول دادم|وجه دادم)/)) return 'pay';
+
+  // Deposits and payments made by the customer increase the customer's cash credit.
+  if(has(/(?:واریز|دریافت وجه|دریافت پول|پول واریز|واریز کرد|واریز نمود|واریز شد|پرداخت کرد|پرداخت نمود|پرداخت شد)/)) return 'receive';
+
+  // Customer buying from the shop means a sale.
+  if(has(/(?:خرید|خریده|خریداری|می\s*خرد|فروش|فروخت|فروخته)/)) return 'sale';
   return null;
 }
 function parseVoicePrice(raw,grams){
