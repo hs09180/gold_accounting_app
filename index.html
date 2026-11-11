@@ -157,9 +157,16 @@ function parseVoicePrice(raw,grams){
     const value=spokenNumber(unit[1].trim());
     if(value>0)return{pricePerGram:value,amount:grams>0?value*grams:0};
   }
-  // Total-price forms: «به مبلغ کل ۵۰ میلیون تومان» or «قیمت ۵۰ میلیون».
+  // Explicit total-price forms.
   const total=s.match(/(?:مبلغ(?:\s*کل)?|به\s*مبلغ|قیمت(?:\s*کل)?|به\s*قیمت|ارزش)\s*(.+?)(?=\s*تومان(?:\s|$)|$)/u);
-  const amount=total?spokenNumber(total[1].trim()):0;
+  if(total){
+    const amount=spokenNumber(total[1].trim());
+    if(amount>0)return{pricePerGram:0,amount};
+  }
+  // Standalone amounts are common in deposits/payments:
+  // «۵۰۰ میلیون تومان واریز کرد» or «پنج میلیون تومان پرداخت کرد».
+  const standalone=s.match(/(?:^|\s)([\d.]+|(?:[\p{L}]+(?:\s+و\s+)?){1,6})(?=\s*تومان(?:\s|$))/u);
+  const amount=standalone?spokenNumber(standalone[1].trim()):0;
   return{pricePerGram:0,amount};
 }
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
