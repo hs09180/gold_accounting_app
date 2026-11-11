@@ -137,6 +137,8 @@ function detectVoiceType(raw){
      has(/(?:به\s+)?حساب\s+(?:فروشگاه|مغازه)\s+(?:واریز|پرداخت)/) ||
      has(/(?:واریز|واریز\s+کرد|واریز\s+نمود|واریز\s+شد|پرداخت\s+کرد|پرداخت\s+نمود|پرداخت\s+شد)(?:ه)?/)) return 'receive';
 
+  // Explicit first-person shop delivery must win over the generic phrase «طلا تحویل دادم».
+  if(has(/به\\s+.{1,50}\\s+تحویل\\s+دادم|تحویل\\s+.{1,50}\\s+دادم/)) return 'gold_out';
   // Gold received from the customer, including "customer delivered gold".
   if(has(/(?:دریافت|گرفتن)\s+(?:.{1,45}\s+)?طلا|طلا\s*(?:دریافت|گرفت)|دریافت\s+.{0,30}\s+گرم|طلا\s+تحویل\s+داد|تحویل\s+داد(?:\s|$)|از\s+.{1,50}\s+تحویل\s+گرفتم/)) return 'gold_in';
 
