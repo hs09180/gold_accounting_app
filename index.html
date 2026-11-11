@@ -249,13 +249,13 @@ const type=detectVoiceType(raw);
 if(!type)return voiceError('نوع عملیات مشخص نیست. بگویید فروش، خرید، واریز وجه، پرداخت وجه، دریافت طلا یا تحویل طلا.');
 const grams=parseVoiceGrams(raw);const price=parseVoicePrice(raw,grams);let amount=price.amount;
 if(['receive','pay'].includes(type)&&amount<=0){
-  const normalizedAmountText=normalizeDigits(raw).replace(/تومن/g,'تومان').replace(/[،؛,:]+/g,' ').replace(/\\s+/g,' ').trim();
-  const tomanMatch=normalizedAmountText.match(/(.+?)\\s*تومان(?:\\s|$)/u);
+  const normalizedAmountText=normalizeDigits(raw).replace(/تومن/g,'تومان').replace(/[،؛,:]+/g,' ').replace(/\s+/g,' ').trim();
+  const tomanMatch=normalizedAmountText.match(/(.+?)\s*تومان(?:\s|$)/u);
   if(tomanMatch){
-    const tokens=tomanMatch[1].trim().split(/\\s+/);
+    const tokens=tomanMatch[1].trim().split(/\s+/);
     const allowed=new Set([...Object.keys(smallNums),'و','هزار','میلیون','میلیارد']);
     const picked=[];
-    for(let i=tokens.length-1;i>=0;i--){const token=tokens[i];if(allowed.has(token)||/^-?\\d+(?:\\.\\d+)?$/.test(token)){picked.unshift(token);continue}break}
+    for(let i=tokens.length-1;i>=0;i--){const token=tokens[i];if(allowed.has(token)||/^-?\d+(?:\.\d+)?$/.test(token)){picked.unshift(token);continue}break}
     if(picked.length)amount=spokenNumber(picked.join(' '));
   }
 }
