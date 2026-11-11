@@ -150,13 +150,17 @@ function detectVoiceType(raw){
   return null;
 }
 function parseVoicePrice(raw,grams){
-  const unit=raw.match(/(?:به\\s*)?(?:هر\\s*گرم|هرگرم|گرمی)(?:\\s*طلا)?\\s*(?:قیمت\\s*)?(.+?)(?:\\s*تومان|$)/);
+  const s=normalizeDigits(raw).replace(/[،؛,:]+/g,' ').replace(/\s+/g,' ').trim();
+  // Unit-price forms: «هر گرم ۲۵ میلیون تومان»، «گرمی بیست و پنج میلیون».
+  const unit=s.match(/(?:به\s*)?(?:هر\s*گرم|هرگرم|گرمی)(?:\s*طلا)?\s*(?:قیمت\s*)?(.+?)(?=\s*تومان(?:\s|$)|$)/u);
   if(unit){
-    const pricePerGram=spokenNumber(unit[1].trim());
-    return{pricePerGram,amount:pricePerGram>0&&grams>0?pricePerGram*grams:0};
+    const value=spokenNumber(unit[1].trim());
+    if(value>0)return{pricePerGram:value,amount:grams>0?value*grams:0};
   }
-  const total=raw.match(/(?:مبلغ(?:\\s*کل)?|به\\s*مبلغ|قیمت(?:\\s*کل)?|به\\s*قیمت|ارزش)\\s*(.+?)(?:\\s*تومان|$)/);
-  return{pricePerGram:0,amount:total?spokenNumber(total[1]):0};
+  // Total-price forms: «به مبلغ کل ۵۰ میلیون تومان» or «قیمت ۵۰ میلیون».
+  const total=s.match(/(?:مبلغ(?:\s*کل)?|به\s*مبلغ|قیمت(?:\s*کل)?|به\s*قیمت|ارزش)\s*(.+?)(?=\s*تومان(?:\s|$)|$)/u);
+  const amount=total?spokenNumber(total[1].trim()):0;
+  return{pricePerGram:0,amount};
 }
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
 function parseVoiceGrams(raw){
