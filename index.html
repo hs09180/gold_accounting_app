@@ -158,19 +158,19 @@ function parseVoicePrice(raw,grams){
 function voiceCustomer(raw){return db.customers.filter(c=>c.name&&raw.includes(c.name)).sort((a,b)=>b.name.length-a.name.length)[0]||null}
 function parseVoiceGrams(raw){
   const s=normalizeDigits(raw).replace(/٫/g,'.');
-  const before=s.match(/(.+?)\\s+گرم(?:\\s|$)/);
+  const before=s.match(/(.+?)\s+گرم(?:\s|$)/);
   if(before){
-    const tokens=before[1].trim().split(/\\s+/);
+    const tokens=before[1].trim().split(/\s+/);
     const numberWords=new Set([...Object.keys(smallNums),'و']);
     const picked=[];
     for(let i=tokens.length-1;i>=0;i--){
       const token=tokens[i];
-      if(numberWords.has(token)||/^-?\\d+(?:[.,]\\d+)?$/.test(token)){picked.unshift(token);continue}
+      if(numberWords.has(token)||/^-?\d+(?:[.,]\d+)?$/.test(token)){picked.unshift(token);continue}
       break;
     }
     if(picked.length){const n=spokenNumber(picked.join(' ').replace(/,/g,'.'));if(n>0)return n}
   }
-  const after=s.match(/گرمی?\\s+([\\d.]+|[\\p{L}]+(?:\\s+و\\s+[\\p{L}]+){0,2})/u);
+  const after=s.match(/گرمی?\s+([\d.]+|[\p{L}]+(?:\s+و\s+[\p{L}]+){0,2})/u);
   if(after){const n=spokenNumber(after[1]);if(n>0)return n}
   return 0;
 }
