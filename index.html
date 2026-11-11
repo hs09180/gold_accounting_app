@@ -138,7 +138,7 @@ function detectVoiceType(raw){
      has(/(?:^|\s)فروخت(?:ه)?\s*(?:است|کرد|نمود)?\s*$/)) return 'purchase';
 
   if(has(/(?:تحویل|دادن)\s*(?:طلا)?|طلا\s*تحویل/)) return 'gold_out';
-  if(has(/(?:دریافت|گرفتن)\s*(?:طلا)|طلا\s*(?:دریافت|گرفت)/)) return 'gold_in';
+  if(has(/(?:دریافت|گرفتن)\s+(?:.{1,35}\s+)?طلا|طلا\s*(?:دریافت|گرفت)/)) return 'gold_in';
 
   // Paying money to a customer is distinct from a customer paying the shop.
   if(has(/(?:پرداخت|دادم)\s*(?:وجه|پول)?\s*(?:به|برای)/) ||
