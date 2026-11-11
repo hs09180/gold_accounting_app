@@ -211,6 +211,32 @@ function parseVoiceGrams(raw){
   if(after){const n=spokenNumber(after[1]);if(n>0)return n}
   return 0;
 }
+function jalaliToGregorian(jy,jm,jd){
+  jy+=1595;
+  let days=-355668+365*jy+Math.floor(jy/33)*8+Math.floor(((jy%33)+3)/4)+jd+(jm<7?(jm-1)*31:((jm-7)*30+186));
+  let gy=400*Math.floor(days/146097);days%=146097;
+  if(days>36524){gy+=100*Math.floor(--days/36524);days%=36524;if(days>=365)days++}
+  gy+=4*Math.floor(days/1461);days%=1461;
+  if(days>365){gy+=Math.floor((days-1)/365);days=(days-1)%365}
+  let gd=days+1;
+  const leap=(gy%4===0&&gy%100!==0)||gy%400===0;
+  const monthDays=[0,31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+  let gm=1;while(gm<=12&&gd>monthDays[gm]){gd-=monthDays[gm];gm++}
+  return String(gy).padStart(4,'0')+'-'+String(gm).padStart(2,'0')+'-'+String(gd).padStart(2,'0');
+}
+function parseVoiceDate(raw){
+  const s=normalizeDigits(raw).replace(/[.،؛]/g,' ').replace(/\\s+/g,' ').trim();
+  const numeric=s.match(/(?:تاریخ\\s*)?(13\\d{2}|14\\d{2})[\\/\\-.](\\d{1,2})[\\/\\-.](\\d{1,2})/);
+  if(numeric){const y=Number(numeric[1]),m=Number(numeric[2]),d=Number(numeric[3]);if(m>=1&&m<=12&&d>=1&&d<=(m<=6?31:m<=11?30:30))return jalaliToGregorian(y,m,d)}
+  const monthNames={'فروردین':1,'اردیبهشت':2,'خرداد':3,'تیر':4,'مرداد':5,'شهریور':6,'مهر':7,'آبان':8,'آذر':9,'دی':10,'بهمن':11,'اسفند':12};
+  const named=s.match(/(\\d{1,2})\\s+(فروردین|اردیبهشت|خرداد|تیر|مرداد|شهریور|مهر|آبان|آذر|دی|بهمن|اسفند)\\s+(13\\d{2}|14\\d{2})/);
+  if(named){const d=Number(named[1]),m=monthNames[named[2]],y=Number(named[3]);if(d>=1&&d<=(m<=6?31:m<=11?30:30))return jalaliToGregorian(y,m,d)}
+  const base=new Date(today()+'T12:00:00');
+  const offset=/پریروز/.test(s)?-2:/دیروز/.test(s)?-1:/فردا/.test(s)?1:0;
+  if(offset){base.setDate(base.getDate()+offset);return base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')+'-'+String(base.getDate()).padStart(2,'0')}
+  if(/امروز/.test(s))return today();
+  return today();
+}
 function voiceError(message){$('voiceResult').innerHTML='<div class="notice">'+esc(message)+'</div>';$('voiceStatus').textContent='فرمان نیاز به اصلاح دارد.'}
 function voiceBalance(c){const b=balances(c.id);const cashText=b.cash<0?'مشتری '+fmt(-b.cash)+' تومان به فروشگاه بدهکار است':b.cash>0?'فروشگاه '+fmt(b.cash)+' تومان به مشتری بدهکار است':'حساب پولی تسویه است';const goldText=b.gold>0?'فروشگاه '+fmt(b.gold)+' گرم طلا به مشتری بدهکار است':b.gold<0?'مشتری '+fmt(-b.gold)+' گرم طلا به فروشگاه بدهکار است':'حساب طلا تسویه است';return '<div class="notice"><b>'+esc(c.name)+'</b><br>مانده پولی: <b class="'+(b.cash<0?'negative':'positive')+'">'+fmt(b.cash)+' تومان</b> — '+esc(cashText)+'<br>مانده طلایی: <b class="'+(b.gold>0?'positive':'negative')+'">'+fmt(b.gold)+' گرم</b> — '+esc(goldText)+'</div><button id="voiceSpeakBalance" class="secondary">🔊 شنیدن مانده حساب</button><button id="voiceOpenLedger" class="gold">بازکردن دفتر گردش</button>'}
 $('parseVoice').onclick=async()=>{try{const raw=normalizeDigits($('voiceText').value);if(!raw)return voiceError('ابتدا فرمان را بگویید یا بنویسید.');
